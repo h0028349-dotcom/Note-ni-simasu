@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI授業ノート＆レジュメ生成</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 text-gray-800 min-h-screen pb-12">
+
+  <header class="bg-blue-600 text-white p-4 shadow-md flex justify-between items-center">
+    <h1 class="font-bold text-lg">AI授業ノート & レジュメ</h1>
+    <span class="text-xs bg-blue-800 px-2 py-1 rounded">完全自動版</span>
+  </header>
+
+  <main class="max-w-md mx-auto p-4 space-y-6">
+
+    <!-- 音声入力エリア -->
+    <section class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 space-y-4">
+      <h2 class="font-bold text-gray-700 text-sm">授業音声を準備</h2>
+      
+      <button id="recordBtn" onclick="toggleRecording()" class="w-full bg-red-500 hover:bg-red-600 text-white py-3 rounded-lg font-bold transition flex items-center justify-center gap-2">
+        <span id="recordIcon" class="w-3 h-3 bg-white rounded-full"></span>
+        <span id="recordStatus">マイクで録音開始</span>
+      </button>
+
+      <div class="text-center text-xs text-gray-400 font-bold">または</div>
+
+      <div>
+        <label class="block text-xs font-bold text-gray-600 mb-1">音声ファイルをアップロード (.mp3, .m4a)</label>
+        <input type="file" id="audioFileInput" accept="audio/*" class="w-full text-xs text-gray-500 file:mr-2 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+      </div>
+    </section>
+
+    <button id="generateBtn" onclick="processAudio()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 border-b-4 border-blue-800 active:border-b-0 rounded-lg font-bold shadow-md transition">
+      ノート＆レジュメを自動生成する
+    </button>
+
+    <!-- ローディング表示 -->
+    <div id="loadingArea" class="hidden bg-white p-6 rounded-xl shadow-sm border text-center space-y-3">
+      <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent"></div>
+      <p id="loadingText" class="text-xs font-bold text-gray-600">AIが音声を解析・ノートを作成中...</p>
+    </div>
+
+    <!-- 結果表示エリア -->
+    <section id="outputArea" class="hidden space-y-4">
+      <div class="flex bg-gray-200 p-1 rounded-lg">
+        <button onclick="switchTab('note')" id="tabNote" class="flex-1 py-2 text-xs font-bold rounded-md bg-white text-blue-600 shadow-sm">生徒用ノート</button>
+        <button onclick="switchTab('resume')" id="tabResume" class="flex-1 py-2 text-xs font-bold text-gray-600">先生用レジュメ (穴埋め)</button>
+      </div>
+
+      <div id="viewNote" class="bg-white p-5 rounded-xl shadow-sm border space-y-4">
+        <div class="border-b pb-2">
+          <span id="outSubject" class="text-xs text-blue-600 font-bold"></span>
+          <h3 id="outTitle" class="text-lg font-bold"></h3>
+        </div>
+        <div>
+          <h4 class="text-xs font-bold text-gray-500 mb-2">【要約・重要ポイント】</h4>
+          <ul id="outKeyPoints" class="list-disc pl-4 text-sm space-y-1"></ul>
+        </div>
+        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded text-xs text-yellow-800">
+          <p class="font-bold">💡 先生のワンポイント</p>
+          <p id="outAdvice"></p>
+        </div>
+        <div class="bg-red-50 border border-red-200 p-3 rounded-lg text-xs space-y-1">
+          <p class="font-bold text-red-600">📌 宿題・提出物</p>
+          <p id="outTask" class="text-gray-700"></p>
+          <p id="outDue" class="text-red-500 font-bold"></p>
+        </div>
+      </div>
+
+      <div id="viewResume" class="hidden bg-white p-5 rounded-xl shadow-sm border space-y-4">
+        <div class="border-b pb-2 flex justify-between items-center">
+          <h3 class="text-base font-bold">【確認テスト】穴埋め問題</h3>
+          <button onclick="window.print()" class="text-xs bg-gray-100 hover:bg-gray-200 border px-2 py-1 rounded">🖨️ 印刷</button>
+        </div>
+        <div id="outQuestions" class="text-sm space-y-3 leading-relaxed"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    let mediaRecorder;
+    let audioChunks = [];
+    let isRecording = false;
+    let recordedAudioBlob = null;
+
+    async function toggleRecording() {
+      const status = document.getElementById('recordStatus');
+      const icon = document.getElementById('recordIcon');
+
+      if (!isRecording) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          mediaRecorder = new MediaRecorder(stream);
+          audioChunks = [];
+          mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+          mediaRecorder.onstop = () => {
+            recordedAudioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
+          };
+          mediaRecorder.start();
+          isRecording = true;
+          status.innerText = "録音中... (タップで停止)";
+          icon.classList.add('animate-ping');
+        } catch (err) {
+          alert('マイクの使用を許可してください');
+        }
+      } else {
+        mediaRecorder.stop();
+        isRecording = false;
+        status.innerText = "録音完了 (再録音可能)";
+        icon.classList.remove('animate-ping');
+      }
+    }
+
+    async function processAudio() {
+      const fileInput = document.getElementById('audioFileInput');
+      let audioFile = null;
+
+      if (fileInput.files.length > 0) {
+        audioFile = fileInput.files[0];
+      } else if (recordedAudioBlob) {
+        audioFile = new File([recordedAudioBlob], "recorded.mp3", { type: "audio/mp3" });
+      } else {
+        return alert('音声を録音するか、ファイルを選択してください');
+      }
+
+      const loadingArea = document.getElementById('loadingArea');
+      const outputArea = document.getElementById('outputArea');
+
+      loadingArea.classList.remove('hidden');
+      outputArea.classList.add('hidden');
+
+      try {
+        const formData = new FormData();
+        formData.append('file', audioFile);
+
+        // 自分のサーバー(Vercel)の /api/process を呼ぶ
+        const res = await fetch('/api/process', {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'エラーが発生しました');
+
+        // 画面にデータを反映
+        document.getElementById('outSubject').innerText = data.subject || '授業ノート';
+        document.getElementById('outTitle').innerText = data.title || '無題';
+        document.getElementById('outAdvice').innerText = data.teacher_advice || 'なし';
+        document.getElementById('outTask').innerText = data.homework?.task || 'なし';
+        document.getElementById('outDue').innerText = data.homework?.due ? `期限: ${data.homework.due}` : '';
+
+        document.getElementById('outKeyPoints').innerHTML = data.key_points.map(p => `<li>${p}</li>`).join('');
+        document.getElementById('outQuestions').innerHTML = data.fill_in_questions.map(q => `<p class="border-b pb-2">${q}</p>`).join('');
+
+        loadingArea.classList.add('hidden');
+        outputArea.classList.remove('hidden');
+
+      } catch (err) {
+        alert(err.message);
+        loadingArea.classList.add('hidden');
+      }
+    }
+
+    function switchTab(type) {
+      document.getElementById('viewNote').classList.toggle('hidden', type !== 'note');
+      document.getElementById('viewResume').classList.toggle('hidden', type !== 'resume');
+    }
+  </script>
+</body>
+</html>
