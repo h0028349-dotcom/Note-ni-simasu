@@ -4,13 +4,11 @@ export const config = {
 
 export async function POST(request) {
   try {
-    // Vercelの環境変数から安全にAPIキーを取得
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      return new Response(JSON.stringify({ error: 'サーバーにAPIキーが設定されていません。' }), { status: 500 });
+      return new Response(JSON.stringify({ error: 'GEMINI_API_KEY がVercelに設定されていません。' }), { status: 500 });
     }
 
-    // 画面から送られてきた音声ファイルを受け取る
     const incomingFormData = await request.formData();
     const audioFile = incomingFormData.get('file');
 
@@ -18,32 +16,13 @@ export async function POST(request) {
       return new Response(JSON.stringify({ error: '音声ファイルが見つかりません。' }), { status: 400 });
     }
 
-    // 1. OpenAI Whisper API で文字起こし
-    const whisperFormData = new FormData();
-    whisperFormData.append('file', audioFile, 'audio.mp3');
-    whisperFormData.append('model', 'whisper-1');
-    whisperFormData.append('language', 'ja');
+    const arrayBuffer = await audioFile.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const base64Audio = buffer.toString('base64');
+    const mimeType = audioFile.type || 'audio/mp3';
 
-    const whisperRes = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${apiKey}` },
-      body: whisperFormData,
-    });
-
-    if (!whisperRes.ok) {
-      const errText = await whisperRes.text();
-      return new Response(JSON.stringify({ error: `Whisperエラー: ${errText}` }), { status: 500 });
-    }
-
-    const whisperData = await whisperRes.json();
-    const transcriptText = whisperData.text;
-
-    // 2. OpenAI GPT-4o API で要約＆穴埋めレジュメ作成
     const prompt = `
-以下の授業の文字起こしテキストから要約ノートと穴埋めテストを作成し、指定のJSON形式で出力してください。
-
-【文字起こしデータ】
-${transcriptText}
+授業の音声データです。この音声を聞き取って内容を解析し、生徒用ノートと穴埋めテストを作成して以下のJSON形式のみで出力してください。
 
 【出力フォーマット (JSON)】
 {
@@ -61,25 +40,32 @@ ${transcriptText}
   ]
 }`;
 
-    const gptRes = await fetch('https://api.openai.com/v1/chat/completions', {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+    const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [{ role: 'user', content: prompt }],
-        response_format: { type: "json_object" }
-      }),
+        contents: [{
+          parts: [
+            { inline_data: { mime_type: mimeType, data: base64Audio } },
+            { text: prompt }
+          ]
+        }],
+        generationConfig: {
+          response_mime_type: "application/json"
+        }
+      })
     });
 
-    if (!gptRes.ok) {
-      return new Response(JSON.stringify({ error: 'ノート生成に失敗しました。' }), { status: 500 });
+    if (!response.ok) {
+      const errText = await response.text();
+      return new Response(JSON.stringify({ error: `Gemini API エラー: ${errText}` }), { status: 500 });
     }
 
-    const gptData = await gptRes.json();
-    const result = JSON.parse(gptData.choices[0].message.content);
+    const data = await response.json();
+    const jsonText = data.candidates[0].content.parts[0].text;
+    const result = JSON.parse(jsonText);
 
     return new Response(JSON.stringify(result), {
       status: 200,
