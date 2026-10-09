@@ -11,6 +11,9 @@ export async function POST(request) {
 
     const incomingFormData = await request.formData();
     const audioFile = incomingFormData.get('file');
+    // 送信された教科とテーマを取得（未入力の場合は補正）
+    const subject = incomingFormData.get('subject') || '指定なし';
+    const topic = incomingFormData.get('topic') || '指定なし';
 
     if (!audioFile) {
       return new Response(JSON.stringify({ error: '音声ファイルが見つかりません。' }), { status: 400 });
@@ -22,20 +25,24 @@ export async function POST(request) {
     const mimeType = audioFile.type || 'audio/mp3';
 
     const prompt = `
-授業の音声データです。以下の【絶対制約】に従い、音声を聞き取ってドキュメント・スライド印刷に適した整理用データをJSON形式のみで出力してください。
+授業の音声データです。以下の【前提情報】および【フィルタリングルール】を厳格に守り、ドキュメント・スライド印刷に適した整理用データをJSON形式のみで出力してください。
 
-【絶対制約】
-1. 授業内で実際に発言された内容のみを使用してください。
-2. 音声内で言及されていない「宿題」「課題」「提出期限」「テスト予定」などの情報は絶対に創作・推測して出力しないでください。
-3. 印刷やプレゼン資料（スライド）化しやすいよう、授業内容をテーマごとの章（セクション）に分けて整理してください。
+【前提情報】
+- 教科: ${subject}
+- 授業テーマ/単元: ${topic}
+
+【フィルタリングルール（雑談の排除）】
+1. 上記の「教科」および「授業テーマ」に直接関係のない雑談（先生の個人談、世間話、挨拶、脱線した話題、出欠確認など）は**全てカット**し、一切出力に含めないでください。
+2. 音声内で実際に発言された本質的な学習・講義内容のみを抽出してください。
+3. 音声内で言及されていない「宿題」「課題」「提出期限」などの情報は絶対に創作・推測して出力しないでください。
 
 【出力フォーマット (JSON)】
 {
-  "subject": "教科名（明確な発言がない場合は『講義ノート』）",
-  "title": "授業テーマ・タイトル",
+  "subject": "${subject !== '指定なし' ? subject : '講義ノート'}",
+  "title": "${topic !== '指定なし' ? topic : '授業まとめ'}",
   "sections": [
     {
-      "heading": "1. セクションタイトル（例：〜の概要）",
+      "heading": "1. セクションタイトル",
       "points": [
         "実際の発言に基づく重要ポイント1",
         "実際の発言に基づく重要ポイント2"
