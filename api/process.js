@@ -40,8 +40,8 @@ export async function POST(request) {
   ]
 }`;
 
-    // 最新の標準モデル gemini-2.0-flash を指定
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    // 指定の最新モデル gemini-3.8-flash を指定
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`;
 
     const response = await fetch(url, {
       method: 'POST',
