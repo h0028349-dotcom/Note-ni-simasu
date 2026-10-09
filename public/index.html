@@ -30,60 +30,73 @@
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800">
 
-  <!-- ヘッダー (印刷時非表示) -->
+  <!-- ヘッダー -->
   <header class="bg-blue-700 text-white p-4 shadow-md no-print">
     <div class="max-w-4xl mx-auto flex justify-between items-center">
       <h1 class="text-xl font-bold">AI授業ノート & レジュメ</h1>
-      <span class="text-xs bg-blue-800 px-2 py-1 rounded">録音 & 印刷対応版</span>
+      <span class="text-xs bg-blue-800 px-2 py-1 rounded">雑談自動カット版</span>
     </div>
   </header>
 
   <main class="max-w-4xl mx-auto p-4 md:p-6 space-y-6">
 
-    <!-- 音声準備エリア (印刷時非表示) -->
+    <!-- 設定 & 音声準備エリア -->
     <section class="bg-white rounded-xl p-6 shadow-sm border border-slate-200 no-print space-y-5">
-      <h2 class="text-lg font-bold text-slate-700">授業音声を準備</h2>
+      
+      <!-- 1. 授業情報の事前入力 (雑談カットの精度向上用) -->
+      <div class="space-y-3 border-b border-slate-100 pb-4">
+        <h2 class="text-base font-bold text-slate-700 flex items-center gap-1">
+          <span>🎯 授業情報の指定（雑談フィルター精度向上）</span>
+        </h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">教科（任意）</label>
+            <input type="text" id="subjectInput" placeholder="例: 世界史、数学II、化学" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">テーマ・単元名（任意）</label>
+            <input type="text" id="topicInput" placeholder="例: 産業革命、微分法、元素の周期表" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+        </div>
+      </div>
 
-      <!-- 録音・ファイル切り替えUI -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        
-        <!-- 1. マイク直接録音 -->
-        <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-3">
-          <h3 class="text-sm font-bold text-slate-700 flex items-center gap-1">
-            <span>🎙️ ブラウザで直接録音</span>
-          </h3>
-          <div class="flex items-center gap-2">
+      <!-- 2. 音声入力選択 -->
+      <div class="space-y-3">
+        <h2 class="text-base font-bold text-slate-700">音声を準備</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          
+          <!-- マイク録音 -->
+          <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-3">
+            <h3 class="text-sm font-bold text-slate-700">🎙️ 直接録音</h3>
             <button id="recordBtn" onclick="toggleRecording()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition flex items-center justify-center gap-2">
               <span id="recordDot" class="w-3 h-3 bg-white rounded-full"></span>
               <span id="recordBtnText">録音開始</span>
             </button>
+            <p id="recordStatus" class="text-xs text-slate-500 text-center">マイクで授業を直接録音</p>
+            <audio id="audioPreview" controls class="w-full hidden mt-2 h-10"></audio>
           </div>
-          <p id="recordStatus" class="text-xs text-slate-500 text-center">マイクボタンを押して授業を録音できます</p>
-          <audio id="audioPreview" controls class="w-full hidden mt-2 h-10"></audio>
-        </div>
 
-        <!-- 2. ファイル指定 -->
-        <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-3">
-          <h3 class="text-sm font-bold text-slate-700 flex items-center gap-1">
-            <span>📁 音声ファイルを選択</span>
-          </h3>
-          <input type="file" id="audioFile" accept="audio/*" onchange="onFileSelected()" class="block w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
-          <p class="text-xs text-slate-500">既存の録音ファイル（mp3, m4a等）をアップロード</p>
-        </div>
+          <!-- ファイル選択 -->
+          <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-3">
+            <h3 class="text-sm font-bold text-slate-700">📁 ファイル選択</h3>
+            <input type="file" id="audioFile" accept="audio/*" onchange="onFileSelected()" class="block w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+            <p class="text-xs text-slate-500">既存の録音ファイル（mp3, m4a等）</p>
+          </div>
 
+        </div>
       </div>
 
-      <!-- 送信実行ボタン -->
+      <!-- 実行ボタン -->
       <button id="generateBtn" onclick="processAudio()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow transition flex items-center justify-center gap-2">
         ノート＆スライド作成を実行
       </button>
 
       <div id="loading" class="hidden text-center py-4 text-blue-600 font-semibold animate-pulse">
-        音声を解析してドキュメントを作成中...
+        音声を解析中...（雑談を除外して要点を整理しています）
       </div>
     </section>
 
-    <!-- 結果表示・印刷エリア -->
+    <!-- 結果表示エリア -->
     <div id="resultContainer" class="hidden space-y-4">
       <div class="flex justify-end gap-3 no-print">
         <button onclick="window.print()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-2 rounded-lg shadow transition flex items-center gap-2">
@@ -116,7 +129,6 @@
     let audioChunks = [];
     let recordedBlob = null;
 
-    // 録音の開始/停止切り替え
     async function toggleRecording() {
       const recordBtn = document.getElementById('recordBtn');
       const recordBtnText = document.getElementById('recordBtnText');
@@ -139,8 +151,7 @@
             const audioUrl = URL.createObjectURL(recordedBlob);
             audioPreview.src = audioUrl;
             audioPreview.classList.remove('hidden');
-            recordStatus.textContent = '録音完了（再録音も可能です）';
-            // ファイル選択をリセット
+            recordStatus.textContent = '録音完了';
             document.getElementById('audioFile').value = '';
           };
 
@@ -152,7 +163,7 @@
           recordBtn.classList.replace('hover:bg-red-700', 'hover:bg-slate-900');
 
         } catch (err) {
-          alert('マイクの使用許可が必要です。ブラウザのマイク権限を確認してください。');
+          alert('マイクの使用許可が必要です。');
         }
       } else if (mediaRecorder.state === 'recording') {
         mediaRecorder.stop();
@@ -164,28 +175,29 @@
       }
     }
 
-    // ファイル選択時のイベント処理
     function onFileSelected() {
-      // ファイルが選ばれた場合は録音データをリセット
       recordedBlob = null;
       document.getElementById('audioPreview').classList.add('hidden');
-      document.getElementById('recordStatus').textContent = 'ファイルが選択されました';
+      document.getElementById('recordStatus').textContent = 'ファイル選択完了';
     }
 
-    // 解析リクエスト送信
     async function processAudio() {
       const fileInput = document.getElementById('audioFile');
+      const subjectInput = document.getElementById('subjectInput');
+      const topicInput = document.getElementById('topicInput');
       const btn = document.getElementById('generateBtn');
       const loading = document.getElementById('loading');
       const resultContainer = document.getElementById('resultContainer');
 
       const formData = new FormData();
 
+      // 教科とテーマの入力を追加
+      if (subjectInput.value.trim()) formData.append('subject', subjectInput.value.trim());
+      if (topicInput.value.trim()) formData.append('topic', topicInput.value.trim());
+
       if (recordedBlob) {
-        // 直接録音したデータを追加
         formData.append('file', recordedBlob, 'recorded_lecture.webm');
       } else if (fileInput.files && fileInput.files.length > 0) {
-        // アップロードファイルを追加
         formData.append('file', fileInput.files[0]);
       } else {
         alert('録音を行うか、音声ファイルを選択してください。');
