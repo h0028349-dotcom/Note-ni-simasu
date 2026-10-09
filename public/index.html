@@ -7,7 +7,6 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @media print {
-      /* 印刷時にUI要素（ボタン・入力フォームなど）を非表示にする */
       .no-print {
         display: none !important;
       }
@@ -35,22 +34,49 @@
   <header class="bg-blue-700 text-white p-4 shadow-md no-print">
     <div class="max-w-4xl mx-auto flex justify-between items-center">
       <h1 class="text-xl font-bold">AI授業ノート & レジュメ</h1>
-      <span class="text-xs bg-blue-800 px-2 py-1 rounded">印刷・ドキュメント対応版</span>
+      <span class="text-xs bg-blue-800 px-2 py-1 rounded">録音 & 印刷対応版</span>
     </div>
   </header>
 
   <main class="max-w-4xl mx-auto p-4 md:p-6 space-y-6">
 
-    <!-- 音声入力エリア (印刷時非表示) -->
-    <section class="bg-white rounded-xl p-6 shadow-sm border border-slate-200 no-print space-y-4">
-      <h2 class="text-lg font-bold text-slate-700">授業音声をアップロード</h2>
-      
-      <div class="flex flex-col sm:flex-row gap-3">
-        <input type="file" id="audioFile" accept="audio/*" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
-        <button id="generateBtn" onclick="processAudio()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-2 rounded-lg transition shrink-0">
-          ノート＆スライド作成
-        </button>
+    <!-- 音声準備エリア (印刷時非表示) -->
+    <section class="bg-white rounded-xl p-6 shadow-sm border border-slate-200 no-print space-y-5">
+      <h2 class="text-lg font-bold text-slate-700">授業音声を準備</h2>
+
+      <!-- 録音・ファイル切り替えUI -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        
+        <!-- 1. マイク直接録音 -->
+        <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-3">
+          <h3 class="text-sm font-bold text-slate-700 flex items-center gap-1">
+            <span>🎙️ ブラウザで直接録音</span>
+          </h3>
+          <div class="flex items-center gap-2">
+            <button id="recordBtn" onclick="toggleRecording()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition flex items-center justify-center gap-2">
+              <span id="recordDot" class="w-3 h-3 bg-white rounded-full"></span>
+              <span id="recordBtnText">録音開始</span>
+            </button>
+          </div>
+          <p id="recordStatus" class="text-xs text-slate-500 text-center">マイクボタンを押して授業を録音できます</p>
+          <audio id="audioPreview" controls class="w-full hidden mt-2 h-10"></audio>
+        </div>
+
+        <!-- 2. ファイル指定 -->
+        <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-3">
+          <h3 class="text-sm font-bold text-slate-700 flex items-center gap-1">
+            <span>📁 音声ファイルを選択</span>
+          </h3>
+          <input type="file" id="audioFile" accept="audio/*" onchange="onFileSelected()" class="block w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+          <p class="text-xs text-slate-500">既存の録音ファイル（mp3, m4a等）をアップロード</p>
+        </div>
+
       </div>
+
+      <!-- 送信実行ボタン -->
+      <button id="generateBtn" onclick="processAudio()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow transition flex items-center justify-center gap-2">
+        ノート＆スライド作成を実行
+      </button>
 
       <div id="loading" class="hidden text-center py-4 text-blue-600 font-semibold animate-pulse">
         音声を解析してドキュメントを作成中...
@@ -59,7 +85,6 @@
 
     <!-- 結果表示・印刷エリア -->
     <div id="resultContainer" class="hidden space-y-4">
-      <!-- アクションバー (印刷時非表示) -->
       <div class="flex justify-end gap-3 no-print">
         <button onclick="window.print()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-2 rounded-lg shadow transition flex items-center gap-2">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H7a2 2 0 00-2 2v4h10z"></path></svg>
@@ -67,45 +92,105 @@
         </button>
       </div>
 
-      <!-- ドキュメント本体 -->
       <article class="print-container bg-white rounded-xl p-8 shadow-sm border border-slate-200 space-y-8">
-        
-        <!-- 表題ヘッダー -->
         <header class="border-b-2 border-slate-800 pb-4">
           <div class="text-sm font-bold text-blue-600 uppercase tracking-wider mb-1" id="outSubject"></div>
           <h1 class="text-2xl md:text-3xl font-extrabold text-slate-900" id="outTitle"></h1>
         </header>
 
-        <!-- 章立て（スライド・ドキュメント構成） -->
         <div id="outSections" class="space-y-6"></div>
 
-        <!-- 穴埋めテスト -->
         <section class="page-break border-t-2 border-slate-200 pt-6">
           <h2 class="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
             <span>📝 授業理解度チェック（穴埋め問題）</span>
           </h2>
           <ol id="outQuestions" class="list-decimal list-inside space-y-2 text-slate-700 font-medium"></ol>
         </section>
-
       </article>
     </div>
 
   </main>
 
   <script>
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let recordedBlob = null;
+
+    // 録音の開始/停止切り替え
+    async function toggleRecording() {
+      const recordBtn = document.getElementById('recordBtn');
+      const recordBtnText = document.getElementById('recordBtnText');
+      const recordDot = document.getElementById('recordDot');
+      const recordStatus = document.getElementById('recordStatus');
+      const audioPreview = document.getElementById('audioPreview');
+
+      if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          mediaRecorder = new MediaRecorder(stream);
+          audioChunks = [];
+
+          mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) audioChunks.push(e.data);
+          };
+
+          mediaRecorder.onstop = () => {
+            recordedBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            const audioUrl = URL.createObjectURL(recordedBlob);
+            audioPreview.src = audioUrl;
+            audioPreview.classList.remove('hidden');
+            recordStatus.textContent = '録音完了（再録音も可能です）';
+            // ファイル選択をリセット
+            document.getElementById('audioFile').value = '';
+          };
+
+          mediaRecorder.start();
+          recordBtnText.textContent = '録音停止';
+          recordDot.classList.add('animate-ping');
+          recordStatus.textContent = '🎙️ 録音中...';
+          recordBtn.classList.replace('bg-red-600', 'bg-slate-800');
+          recordBtn.classList.replace('hover:bg-red-700', 'hover:bg-slate-900');
+
+        } catch (err) {
+          alert('マイクの使用許可が必要です。ブラウザのマイク権限を確認してください。');
+        }
+      } else if (mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+        mediaRecorder.stream.getTracks().forEach(track => track.stop());
+        recordBtnText.textContent = '再録音する';
+        recordDot.classList.remove('animate-ping');
+        recordBtn.classList.replace('bg-slate-800', 'bg-red-600');
+        recordBtn.classList.replace('hover:bg-slate-900', 'hover:bg-red-700');
+      }
+    }
+
+    // ファイル選択時のイベント処理
+    function onFileSelected() {
+      // ファイルが選ばれた場合は録音データをリセット
+      recordedBlob = null;
+      document.getElementById('audioPreview').classList.add('hidden');
+      document.getElementById('recordStatus').textContent = 'ファイルが選択されました';
+    }
+
+    // 解析リクエスト送信
     async function processAudio() {
       const fileInput = document.getElementById('audioFile');
       const btn = document.getElementById('generateBtn');
       const loading = document.getElementById('loading');
       const resultContainer = document.getElementById('resultContainer');
 
-      if (!fileInput.files || fileInput.files.length === 0) {
-        alert('音声ファイルを選択してください。');
+      const formData = new FormData();
+
+      if (recordedBlob) {
+        // 直接録音したデータを追加
+        formData.append('file', recordedBlob, 'recorded_lecture.webm');
+      } else if (fileInput.files && fileInput.files.length > 0) {
+        // アップロードファイルを追加
+        formData.append('file', fileInput.files[0]);
+      } else {
+        alert('録音を行うか、音声ファイルを選択してください。');
         return;
       }
-
-      const formData = new FormData();
-      formData.append('file', fileInput.files[0]);
 
       btn.disabled = true;
       btn.classList.add('opacity-50');
@@ -139,7 +224,6 @@
       document.getElementById('outSubject').textContent = data.subject || '講義ノート';
       document.getElementById('outTitle').textContent = data.title || '授業まとめ';
 
-      // セクション（章立て）のレンダリング
       const sectionsContainer = document.getElementById('outSections');
       sectionsContainer.innerHTML = '';
 
@@ -170,7 +254,6 @@
         });
       }
 
-      // 穴埋め質問のレンダリング
       const questionsContainer = document.getElementById('outQuestions');
       questionsContainer.innerHTML = '';
 
